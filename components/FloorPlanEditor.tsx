@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Canvas from "./Canvas";
 import Palette from "./Palette";
 import PropertiesPanel from "./PropertiesPanel";
 import TopBar from "./TopBar";
 import { FloorPlanDoc, PalettePreset, PlacedObject, VenueSpec } from "@/lib/types";
 import { genId } from "@/lib/geometry";
+import { computeOverlaps } from "@/lib/overlap";
 import { deletePlan, listSavedPlans, loadPlan, savePlan, SavedPlanMeta } from "@/lib/storage";
 
 const DEFAULT_VENUE: VenueSpec = {
@@ -58,6 +59,7 @@ export default function FloorPlanEditor() {
   }, []);
 
   const selected = objects.find((o) => o.id === selectedId) || null;
+  const overlappingIds = useMemo(() => computeOverlaps(objects), [objects]);
 
   const handleAdd = (preset: PalettePreset) => {
     pushHistory(objects);
@@ -270,6 +272,7 @@ export default function FloorPlanEditor() {
             selectedId={selectedId}
             gridSnap={gridSnap}
             zoom={zoom}
+            overlappingIds={overlappingIds}
             onSelect={setSelectedId}
             onChangeObject={handleChangeObjectWithHistory}
             onCommit={handleCommitWithReset}
@@ -279,6 +282,7 @@ export default function FloorPlanEditor() {
           venue={venue}
           objects={objects}
           selected={selected}
+          overlapCount={overlappingIds.size}
           onChange={handlePropertiesChange}
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}

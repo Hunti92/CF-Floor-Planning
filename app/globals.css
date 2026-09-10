@@ -491,6 +491,135 @@ input {
   user-select: none;
 }
 
+.wall-break {
+  fill: var(--paper);
+}
+
+.door-leaf,
+.door-arc {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 0.045;
+}
+
+.door-arc {
+  stroke-dasharray: 0.12 0.1;
+}
+
+.door-jamb {
+  stroke: var(--ink);
+  stroke-width: 0.09;
+}
+
+.window-line {
+  stroke: var(--blueprint);
+  stroke-width: 0.06;
+}
+
+.window-line-thin {
+  stroke: var(--blueprint);
+  stroke-width: 0.02;
+}
+
+.free-text {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
+.overlap-flag {
+  fill: rgba(176, 71, 63, 0.12);
+  stroke: var(--danger);
+  stroke-width: 0.06;
+  stroke-dasharray: 0.2 0.16;
+}
+
+/* ---------- Palette: door/window/text mini icons ---------- */
+
+.preset-line {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  fill: none;
+}
+
+.preset-line-thin {
+  stroke: var(--ink);
+  stroke-width: 0.8;
+  fill: none;
+  opacity: 0.6;
+}
+
+.preset-arc {
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  stroke-dasharray: 2.5 2;
+  fill: none;
+}
+
+.preset-text-icon {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* ---------- Color swatches ---------- */
+
+.swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--sw);
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch-active {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--paper);
+  outline: 1px solid var(--ink);
+}
+
+/* ---------- Properties: warnings & textarea ---------- */
+
+.summary-row-warning strong {
+  color: var(--danger);
+}
+
+.properties-warning {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger);
+  background: rgba(176, 71, 63, 0.08);
+  border: 1px solid rgba(176, 71, 63, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 14px;
+}
+
+.field textarea {
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--graphite);
+  outline: none;
+  resize: vertical;
+}
+
+.field textarea:focus {
+  border-color: var(--blueprint);
+}
+
 /* ---------- Properties panel ---------- */
 
 .properties {

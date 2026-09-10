@@ -10,6 +10,7 @@ interface CanvasProps {
   selectedId: string | null;
   gridSnap: boolean;
   zoom: number; // pixels per foot
+  overlappingIds: Set<string>;
   onSelect: (id: string | null) => void;
   onChangeObject: (id: string, patch: Partial<PlacedObject>) => void;
   onCommit: () => void; // called on pointerup to push undo/save state
@@ -18,11 +19,54 @@ interface CanvasProps {
 const SNAP_STEP = 0.5; // feet
 const ROTATE_SNAP = 15; // degrees
 const MARGIN = 3; // feet of ruler margin around venue
+const WALL_SNAP_DIST = 2.5; // feet — how close a door/window must be to a wall to snap onto it
+
+const DOOR_KINDS = new Set(["door-single", "door-double"]);
+const WALL_MOUNTED_KINDS = new Set(["door-single", "door-double", "window"]);
 
 type DragState =
   | { type: "move"; id: string; offsetX: number; offsetY: number }
   | { type: "resize"; id: string; corner: "nw" | "ne" | "sw" | "se" }
   | { type: "rotate"; id: string };
+
+// Standard architectural door swing symbol, drawn in the object's local
+// (unrotated) frame with the opening centered on the x-axis at y=0.
+function DoorSymbol({ halfW, double: isDouble }: { halfW: number; double: boolean }) {
+  if (!isDouble) {
+    const r = halfW * 2;
+    return (
+      <>
+        <line x1={-halfW} y1={0} x2={-halfW} y2={-r} className="door-leaf" />
+        <path d={`M ${-halfW} ${-r} A ${r} ${r} 0 0 1 ${halfW} 0`} className="door-arc" />
+        <line x1={-halfW} y1={-0.18} x2={-halfW} y2={0.18} className="door-jamb" />
+        <line x1={halfW} y1={-0.18} x2={halfW} y2={0.18} className="door-jamb" />
+      </>
+    );
+  }
+  const r = halfW;
+  return (
+    <>
+      <line x1={-halfW} y1={0} x2={-halfW} y2={-r} className="door-leaf" />
+      <path d={`M ${-halfW} ${-r} A ${r} ${r} 0 0 1 0 0`} className="door-arc" />
+      <line x1={halfW} y1={0} x2={halfW} y2={-r} className="door-leaf" />
+      <path d={`M ${halfW} ${-r} A ${r} ${r} 0 0 0 0 0`} className="door-arc" />
+      <line x1={-halfW} y1={-0.18} x2={-halfW} y2={0.18} className="door-jamb" />
+      <line x1={halfW} y1={-0.18} x2={halfW} y2={0.18} className="door-jamb" />
+    </>
+  );
+}
+
+function WindowSymbol({ halfW }: { halfW: number }) {
+  return (
+    <>
+      <line x1={-halfW} y1={-0.13} x2={halfW} y2={-0.13} className="window-line" />
+      <line x1={-halfW} y1={0.13} x2={halfW} y2={0.13} className="window-line" />
+      <line x1={-halfW} y1={0} x2={halfW} y2={0} className="window-line-thin" />
+      <line x1={-halfW} y1={-0.18} x2={-halfW} y2={0.18} className="door-jamb" />
+      <line x1={halfW} y1={-0.18} x2={halfW} y2={0.18} className="door-jamb" />
+    </>
+  );
+}
 
 export default function Canvas({
   venue,
@@ -30,6 +74,7 @@ export default function Canvas({
   selectedId,
   gridSnap,
   zoom,
+  overlappingIds,
   onSelect,
   onChangeObject,
   onCommit,
@@ -62,6 +107,32 @@ export default function Canvas({
         let ny = p.y - drag.offsetY;
         nx = snapVal(nx, SNAP_STEP, gridSnap);
         ny = snapVal(ny, SNAP_STEP, gridSnap);
+
+        if (WALL_MOUNTED_KINDS.has(obj.kind)) {
+          const dLeft = Math.abs(nx - 0);
+          const dRight = Math.abs(nx - venue.widthFt);
+          const dTop = Math.abs(ny - 0);
+          const dBottom = Math.abs(ny - venue.heightFt);
+          const minD = Math.min(dLeft, dRight, dTop, dBottom);
+          if (minD < WALL_SNAP_DIST) {
+            let rotation = obj.rotation;
+            if (minD === dLeft) {
+              nx = 0;
+              rotation = 90;
+            } else if (minD === dRight) {
+              nx = venue.widthFt;
+              rotation = 90;
+            } else if (minD === dTop) {
+              ny = 0;
+              rotation = 0;
+            } else {
+              ny = venue.heightFt;
+              rotation = 0;
+            }
+            onChangeObject(obj.id, { x: nx, y: ny, rotation });
+            return;
+          }
+        }
         onChangeObject(obj.id, { x: nx, y: ny });
       } else if (drag.type === "resize") {
         const rad = toRad(-obj.rotation);
@@ -69,10 +140,11 @@ export default function Canvas({
         const dy = p.y - obj.y;
         const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
         const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+        const isText = obj.shape === "text";
         let newW = clamp(Math.abs(localX) * 2, 1, 60);
-        let newH = clamp(Math.abs(localY) * 2, 1, 60);
+        let newH = clamp(Math.abs(localY) * 2, isText ? 0.3 : 1, isText ? 5 : 60);
         newW = snapVal(newW, SNAP_STEP, gridSnap);
-        newH = snapVal(newH, SNAP_STEP, gridSnap);
+        newH = isText ? Math.round(newH * 20) / 20 : snapVal(newH, SNAP_STEP, gridSnap);
         onChangeObject(obj.id, { width: newW, height: newH });
       } else if (drag.type === "rotate") {
         const dx = p.x - obj.x;
@@ -83,7 +155,7 @@ export default function Canvas({
         onChangeObject(obj.id, { rotation: angle });
       }
     },
-    [objects, gridSnap, onChangeObject, toSvgPoint]
+    [objects, gridSnap, onChangeObject, toSvgPoint, venue.widthFt, venue.heightFt]
   );
 
   const endDrag = useCallback(() => {
@@ -191,6 +263,13 @@ export default function Canvas({
         const isSelected = obj.id === selectedId;
         const halfW = obj.width / 2;
         const halfH = obj.height / 2;
+        const isText = obj.shape === "text";
+        const isDoor = DOOR_KINDS.has(obj.kind);
+        const isWindow = obj.kind === "window";
+        const isOpening = isDoor || isWindow;
+        const isOverlapping = overlappingIds.has(obj.id);
+        const lines = isText ? obj.label.split("\n") : [obj.label];
+
         return (
           <g
             key={obj.id}
@@ -198,8 +277,46 @@ export default function Canvas({
             onPointerDown={(e) => onObjectPointerDown(e, obj)}
             style={{ cursor: obj.locked ? "not-allowed" : "grab" }}
           >
-            {obj.shape === "circle" ? (
+            {isOverlapping && !isText && (
+              <rect
+                x={-halfW - 0.35}
+                y={-halfH - 0.35}
+                width={obj.width + 0.7}
+                height={obj.height + 0.7}
+                rx={0.3}
+                className="overlap-flag"
+              />
+            )}
+
+            {isText ? (
+              <>
+                <rect x={-halfW} y={-halfH} width={obj.width} height={obj.height} fill="transparent" />
+                <text textAnchor="middle" fontSize={obj.height} className="free-text" fill={obj.color}>
+                  {lines.map((line, i) => (
+                    <tspan key={i} x={0} y={(i - (lines.length - 1) / 2) * obj.height * 1.2 + obj.height * 0.32}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+              </>
+            ) : isOpening ? (
+              <>
+                <rect x={-halfW} y={-0.09} width={obj.width} height={0.18} className="wall-break" />
+                {isDoor ? (
+                  <DoorSymbol halfW={halfW} double={obj.kind === "door-double"} />
+                ) : (
+                  <WindowSymbol halfW={halfW} />
+                )}
+              </>
+            ) : obj.shape === "circle" ? (
               <circle r={halfW} className="fp-object" style={{ "--obj-color": obj.color } as React.CSSProperties} />
+            ) : obj.shape === "ellipse" ? (
+              <ellipse
+                rx={halfW}
+                ry={halfH}
+                className="fp-object"
+                style={{ "--obj-color": obj.color } as React.CSSProperties}
+              />
             ) : (
               <rect
                 x={-halfW}
@@ -211,10 +328,13 @@ export default function Canvas({
                 style={{ "--obj-color": obj.color } as React.CSSProperties}
               />
             )}
-            <text y={0.13} textAnchor="middle" className="obj-label">
-              {obj.label}
-            </text>
-            {obj.seats ? (
+
+            {!isText && !isOpening && (
+              <text y={0.13} textAnchor="middle" className="obj-label">
+                {obj.label}
+              </text>
+            )}
+            {!isText && !isOpening && obj.seats ? (
               <text y={halfH > 1 ? 0.7 : halfH + 0.6} textAnchor="middle" className="obj-seats">
                 {obj.seats} seats
               </text>
@@ -222,13 +342,15 @@ export default function Canvas({
 
             {isSelected && (
               <>
-                <rect
-                  x={-halfW - 0.3}
-                  y={-halfH - 0.3}
-                  width={obj.width + 0.6}
-                  height={obj.height + 0.6}
-                  className="selection-outline"
-                />
+                {!isText && (
+                  <rect
+                    x={-halfW - 0.3}
+                    y={-halfH - 0.3}
+                    width={obj.width + 0.6}
+                    height={obj.height + 0.6}
+                    className="selection-outline"
+                  />
+                )}
                 {!obj.locked && (
                   <>
                     <line x1={0} y1={-halfH - 0.3} x2={0} y2={-halfH - 1.4} className="rotate-stem" />
@@ -256,9 +378,11 @@ export default function Canvas({
                     })}
                   </>
                 )}
-                <text x={0} y={halfH + 1.1} textAnchor="middle" className="dim-label">
-                  {formatFeetInches(obj.width)} × {formatFeetInches(obj.height)}
-                </text>
+                {!isText && (
+                  <text x={0} y={halfH + 1.1} textAnchor="middle" className="dim-label">
+                    {isOpening ? `${formatFeetInches(obj.width)} opening` : `${formatFeetInches(obj.width)} × ${formatFeetInches(obj.height)}`}
+                  </text>
+                )}
               </>
             )}
           </g>

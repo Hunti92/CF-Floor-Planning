@@ -5,11 +5,19 @@ A to-scale floor plan tool for planning venue layouts: set your room dimensions,
 ## Features
 
 - **Set venue dimensions** in feet or meters — the canvas is drawn to scale on a grid (major lines every 5 ft, ruler along the top/left edges).
-- **Object tray** with common venue pieces (round/rectangular/banquet/cocktail tables, sofas, lounge chairs, stage, DJ booth, bar, bar stools, dance floor, entrance markers) grouped by category.
+- **Object tray** grouped by category:
+  - Seating — round, oval, rectangular & banquet tables, cocktail tables, sofas, lounge chairs
+  - Stage & production — stage, DJ booth, photo backdrop
+  - Bar & service — straight/curved bar, bar stools, buffet/food station
+  - Layout markers — dance floor, entrance/exit, registration/check-in, coat check, gift/card table
+  - **Doors & windows** — single door, double door, and window, each with an editable opening width and a proper architectural swing-arc symbol; drag one near a wall and it snaps flush onto it, oriented correctly
+  - **Text & labels** — freeform, multi-line, resizable, recolorable annotations for room names, zone labels, signage notes, etc.
 - **Drag to place and move**, with snap-to-grid (toggle on/off, 0.5 ft increments).
-- **Resize and rotate** any object using the corner and top handles (rotation snaps to 15°).
-- **Properties panel** to edit label, exact width/depth, rotation, seat count, and lock an object in place.
-- **Live plan summary** — object counts and total seat count.
+- **Resize and rotate** any object using the corner and top handles (rotation snaps to 15°); dragging a text label's corner resizes its font size live.
+- **Collision warnings** — furniture and fixtures that overlap are outlined in red and counted in the summary panel, so you can catch tight or blocked walkways before the event.
+- **Recolor anything** from a small curated swatch palette, to build your own zoning/color-coding scheme.
+- **Properties panel** to edit label/text, exact dimensions (or opening width, or font size), rotation, seat count, color, and lock an object in place.
+- **Live plan summary** — object counts, total seat count, and overlap count.
 - **Save/load plans** to your browser (localStorage), start a **New** plan, **Export/Import as JSON** (to back up or share a plan file), and **Export as PNG** (to share an image).
 - Keyboard shortcuts: `Delete`/`Backspace` to remove the selected object, `Ctrl/Cmd+D` to duplicate, `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` to undo/redo.
 
@@ -50,8 +58,9 @@ components/
   PropertiesPanel.tsx    Right-hand panel for editing the selected object
 lib/
   types.ts        Shared TypeScript types
-  presets.ts      Object tray presets (dimensions, seat counts, colors)
-  geometry.ts     Unit conversion, grid snapping, rotation math
+  presets.ts      Object tray presets (dimensions, seat counts, colors, swatches)
+  geometry.ts     Unit conversion, grid snapping, rotation math, OBB corner math
+  overlap.ts      Collision detection between placed furniture/fixtures
   storage.ts      localStorage save/load helpers
 ```
 
